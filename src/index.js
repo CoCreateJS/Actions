@@ -178,6 +178,7 @@ function runSpecialAction(actions, index, element, actionName, params) {
 				type: "selector"
 			});
 			for (let i = 0; i < elements.length; i++) {
+				// ToDO: Await respose from read/save/renderValue functions
 				if (elements[i][actionName]) elements[i][actionName]();
 			}
 			break;
