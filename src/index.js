@@ -11,282 +11,318 @@ const actions = {};
  * endEvent: string
  **/
 function init(data) {
-	if (!Array.isArray(data)) data = [data];
-	for (let { name, callback, endEvent } of data) {
-		if (!Array.isArray(name)) name = [name];
-		for (let i = 0; i < name.length; i++) {
-			if (actions[name[i]]) continue;
+    if (!Array.isArray(data)) data = [data];
+    for (let { name, callback, endEvent } of data) {
+        if (!Array.isArray(name)) name = [name];
+        for (let i = 0; i < name.length; i++) {
+            if (actions[name[i]]) continue;
 
-			actions[name[i]] = {
-				name: name[i],
-				callback,
-				endEvent: endEvent || name[i]
-			};
-		}
-	}
+            actions[name[i]] = {
+                name: name[i],
+                callback,
+                endEvent: endEvent || name[i]
+            };
+        }
+    }
 }
 
 function initActions(elements) {
-	if (!elements) {
-		elements = document.querySelectorAll("[actions]");
-	} else if (
-		!(elements instanceof HTMLCollection) &&
-		!(elements instanceof NodeList) &&
-		!Array.isArray(elements)
-	) {
-		elements = [elements];
-	}
+    if (!elements) {
+        elements = document.querySelectorAll("[actions]");
+    } else if (
+        !(elements instanceof HTMLCollection) &&
+        !(elements instanceof NodeList) &&
+        !Array.isArray(elements)
+    ) {
+        elements = [elements];
+    }
 
-	// Add click event listeners to elements
-	for (let i = 0; i < elements.length; i++) {
-		initEvent(elements[i]);
-	}
+    // Add click event listeners to elements
+    for (let i = 0; i < elements.length; i++) {
+        initEvent(elements[i]);
+    }
 }
 
 function initEvent(element) {
-	element.addEventListener("click", eventFunction);
+    element.addEventListener("click", eventFunction);
 }
 
 function eventFunction(event) {
-	let target = event.target;
+    let target = event.target;
 
-	if (!target.getAttribute(attribute)) {
-		target = event.target.closest(`[${attribute}]`);
-	}
+    if (!target.getAttribute(attribute)) {
+        target = event.target.closest(`[${attribute}]`);
+    }
 
-	if (!target) return;
+    if (!target) return;
 
-	if (target.tagName.toLowerCase() === "form") {
-		const pattern =
-			/^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(:\d{1,5})?(\/.*)?$/i;
-		if (pattern.test(target.action)) return target.submit();
-	}
+    if (target.tagName.toLowerCase() === "form") {
+        const pattern =
+            /^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(:\d{1,5})?(\/.*)?$/i;
+        if (pattern.test(target.action)) return target.submit();
+    }
 
-	event.preventDefault();
+    event.preventDefault();
 
-	let actions = (target.getAttribute(attribute) || "").split(/\s*,\s*/);
-	if (actions.length === 0) return;
+    let actions = (target.getAttribute(attribute) || "").split(/\s*,\s*/);
+    if (actions.length === 0) return;
 
-	let index = 0;
-	let stagedActions = [];
-	for (let action of actions) {
-		let [name, params] = action.split("(");
-		if (params) params = params.substring(0, params.length - 1);
+    let index = 0;
+    let stagedActions = [];
+    for (let action of actions) {
+        let [name, params] = action.split("(");
+        if (params) params = params.substring(0, params.length - 1);
 
-		stagedActions.push({ name, params });
-	}
+        stagedActions.push({ name, params });
+    }
 
-	runAction(stagedActions, index, target);
+    runAction(stagedActions, index, target);
 }
 
-function runAction(stagedActions, index, element) {
-	if (index >= stagedActions.length) {
-		if (index == stagedActions.length) {
-			runSubmit(element);
-			runLink(element);
-		}
-		return;
-	}
+async function runAction(stagedActions, index, element) {
+    if (index >= stagedActions.length) {
+        if (index == stagedActions.length) {
+            runSubmit(element);
+            runLink(element);
+        }
+        return;
+    }
 
-	const currentAction = stagedActions[index];
-	if (!currentAction) return;
+    const currentAction = stagedActions[index];
+    if (!currentAction) return;
 
-	let actionName = currentAction.name;
-	if (actionName.includes(".")) {
-		let name = actionName.split(".")[0];
-		currentAction.method = actionName.substring(name.length + 1);
-		currentAction.name = actionName = name;
-		currentAction.endEvent = uuid.generate(6);
-	}
+    let actionName = currentAction.name;
+    if (actionName.includes(".")) {
+        let name = actionName.split(".")[0];
+        currentAction.method = actionName.substring(name.length + 1);
+        currentAction.name = actionName = name;
+        currentAction.endEvent = uuid.generate(6);
+    }
 
-	const action = actions[actionName];
+    const actionDefinition = actions[actionName];
 
-	if (action) {
-		element.addEventListener(
-			currentAction.endEvent || action.endEvent,
-			function () {
-				runNextAction(stagedActions, index, element);
-			},
-			{ once: true }
-		);
+    if (actionDefinition) {
+        const resolvedEndEvent =
+            currentAction.endEvent || actionDefinition.endEvent;
 
-		if (action.callback) {
-			const form = element.closest("form");
-			action.callback.call(null, { element, form, ...currentAction });
-		} else runNextAction(stagedActions, index, element);
-	} else {
-		let status = runSpecialAction(
-			stagedActions,
-			index,
-			element,
-			actionName,
-			currentAction.params
-		);
-		if (status === "next") {
-			runNextAction(stagedActions, index, element);
-		}
-	}
+        element.addEventListener(
+            resolvedEndEvent,
+            function () {
+                runNextAction(stagedActions, index, element);
+            },
+            { once: true }
+        );
+
+        if (actionDefinition.callback) {
+            const form = element.closest("form");
+            currentAction.name = actionName;
+            currentAction.endEvent = resolvedEndEvent;
+            currentAction.end = (detail = {}) => {
+                element.dispatchEvent(
+                    new CustomEvent(resolvedEndEvent, {
+                        bubbles: true,
+                        detail: {
+                            element,
+                            form,
+                            action: {
+                                name: actionName,
+                                method: currentAction.method,
+                                params: currentAction.params,
+                                endEvent: resolvedEndEvent
+                            },
+                            ...detail
+                        }
+                    })
+                );
+            };
+
+            actionDefinition.callback.call(null, {
+                element,
+                form,
+                ...currentAction
+            });
+        } else runNextAction(stagedActions, index, element);
+    } else {
+        let status = await runSpecialAction(
+            stagedActions,
+            index,
+            element,
+            actionName,
+            currentAction.params
+        );
+        if (status === "next") {
+            runNextAction(stagedActions, index, element);
+        }
+    }
 }
 
-function runSpecialAction(actions, index, element, actionName, params) {
-	if (!params && actionName !== "submit" && actionName !== "disabled") return "next";
-	let elements,
-		status = "next";
-	switch (actionName) {
-		case "event":
-			console.log("Waiting Event....");
-			status = "";
-			element.addEventListener(
-				params,
-				() => {
-					console.log(
-						"Event Action (Received event from other section) ====== " +
-							params
-					);
-					runNextAction(actions, index, element);
-				},
-				{ once: true }
-			);
-			break;
-		case "timeout":
-			status = "";
+async function runSpecialAction(actions, index, element, actionName, params) {
+    if (!params && actionName !== "submit" && actionName !== "disabled") return "next";
+    let elements,
+        status = "next";
+    switch (actionName) {
+        case "event":
+            console.log("Waiting Event....");
+            status = "";
+            element.addEventListener(
+                params,
+                () => {
+                    console.log(
+                        "Event Action (Received event from other section) ====== " +
+                            params
+                    );
+                    runNextAction(actions, index, element);
+                },
+                { once: true }
+            );
+            break;
+        case "timeout":
+            status = "";
 
-			let delayTime = parseInt(params);
-			if (delayTime > 0) {
-				setTimeout(function () {
-					console.log("Timeout ======= " + params);
-					runNextAction(actions, index, element);
-				}, parseInt(params));
-			}
-			break;
-		case "action":
-			elements = queryElements({
-				element,
-				selector: params,
-				type: "selector"
-			});
-			for (let i = 0; i < elements.length; i++) {
-				elements[i].click();
-			}
-			break;
-		case "read":
-		case "save":
-		case "renderValue":
-			elements = queryElements({
-				element,
-				selector: params,
-				type: "selector"
-			});
-			for (let i = 0; i < elements.length; i++) {
-				// ToDO: Await respose from read/save/renderValue functions
-				if (elements[i][actionName]) elements[i][actionName]();
-			}
-			break;
-		case "submit":
-			status = "";
+            let delayTime = parseInt(params);
+            if (delayTime > 0) {
+                setTimeout(function () {
+                    console.log("Timeout ======= " + params);
+                    runNextAction(actions, index, element);
+                }, parseInt(params));
+            }
+            break;
+        case "action":
+            elements = queryElements({
+                element,
+                selector: params,
+                type: "selector"
+            });
+            for (let i = 0; i < elements.length; i++) {
+                elements[i].click();
+            }
+            break;
+        case "submit":
+            status = "";
 
-			let form = element.closest("form");
-			if (form) {
-				// Attach a listener for the custom "submitted" event
-				element.addEventListener(
-					"submitted",
-					(event) => {
-						runNextAction(actions, index, element);
-					},
-					{ once: true } // Ensures the event is only handled once
-				);
+            let form = element.closest("form");
+            if (form) {
+                // Attach a listener for the custom "submitted" event
+                element.addEventListener(
+                    "submitted",
+                    (event) => {
+                        runNextAction(actions, index, element);
+                    },
+                    { once: true } // Ensures the event is only handled once
+                );
 
-				// Create a custom submit event with additional details
-				const submitEvent = new CustomEvent("submit", {
-					bubbles: true,
-					cancelable: true,
-					detail: {
-						element, // Add details about the triggering element
-						form // Add a reference to the form
-					}
-				});
+                // Create a custom submit event with additional details
+                const submitEvent = new CustomEvent("submit", {
+                    bubbles: true,
+                    cancelable: true,
+                    detail: {
+                        element, // Add details about the triggering element
+                        form // Add a reference to the form
+                    }
+                });
 
-				// Dispatch the custom submit event
-				if (form.dispatchEvent(submitEvent)) {
-					form.submit(); // Proceed with form submission if the event isn't canceled
-				}
-			}
-			break;
-		case "disabled":
-			let button = element.closest("button");
-			if (button) {
-				if (button.hasAttribute("disabled")) {
-					button.removeAttribute("disabled");
-				} else {
-					button.setAttribute("disabled", "");
-				}
-			}
-			break;
-		default:
-			elements = queryElements({
-				element,
-				selector: params,
-				type: "selector"
-			});
-			for (let i = 0; i < elements.length; i++) {
-				if (elements[i][actionName]) elements[i][actionName]();
-			}
-	}
+                // Dispatch the custom submit event
+                if (form.dispatchEvent(submitEvent)) {
+                    form.submit(); // Proceed with form submission if the event isn't canceled
+                }
+            }
+            break;
+        case "disabled":
+            let button = element.closest("button");
+            if (button) {
+                if (button.hasAttribute("disabled")) {
+                    button.removeAttribute("disabled");
+                } else {
+                    button.setAttribute("disabled", "");
+                }
+            }
+            break;
+        case "read":
+        case "save":
+        case "renderValue":
+        default:
+            elements = queryElements({
+                element,
+                selector: params,
+                type: "selector"
+            });
+            
+            let promises = [];
+            for (let i = 0; i < elements.length; i++) {
+                if (typeof elements[i][actionName] === "function") {
+                    let res = elements[i][actionName]();
+                    // If the function returns a Promise, queue it to be awaited
+                    if (res instanceof Promise) {
+                        promises.push(res);
+                    }
+                }
+            }
+            
+            if (promises.length > 0) {
+                try {
+                    await Promise.all(promises);
+                } catch (err) {
+                    console.error(`Error executing ${actionName}:`, err);
+                    status = "error"; // Prevent 'runNextAction' on critical failure
+                }
+            }
+            break;
+    }
 
-	return status;
+    return status;
 }
 
 function runNextAction(actions, index, element) {
-	runAction(actions, (index += 1), element);
+    runAction(actions, (index += 1), element);
 }
 
 function runSubmit(element) {
-	let button = element.closest('[type="submit"]');
-	if (!button) button = element.querySelector('[type="submit"]');
-	if (button) {
-		let form = element.closest("form");
-		if (form && form.action) {
-			const pattern =
-				/^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(:\d{1,5})?(\/.*)?$/i;
-			if (pattern.test(form.action)) form.submit();
-		}
-	}
+    let button = element.closest('[type="submit"]');
+    if (!button) button = element.querySelector('[type="submit"]');
+    if (button) {
+        let form = element.closest("form");
+        if (form && form.action) {
+            const pattern =
+                /^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(:\d{1,5})?(\/.*)?$/i;
+            if (pattern.test(form.action)) form.submit();
+        }
+    }
 }
 
 function runLink(element) {
-	let link = element.closest("[href], [target], [state_to]");
-	if (!link) link = element.querySelector("[href], [target], [state_to]");
-	if (link) run(link);
+    let link = element.closest("[href], [target], [state_to]");
+    if (!link) link = element.querySelector("[href], [target], [state_to]");
+    if (link) run(link);
 }
 
 function run(link) {
-	if (typeof CoCreate.link !== "undefined") {
-		CoCreate.link.open(link);
-	} else if (link.hasAttribute("href")) {
-		let href = link.getAttribute("href") || "";
-		// Normalize both URLs to compare paths in a uniform way
-		const currentPath = new URL(location.href).pathname.replace(
-			"/index.html",
-			"/"
-		);
-		const targetPath = new URL(href, location.href).pathname.replace(
-			"/index.html",
-			"/"
-		);
+    if (typeof CoCreate.link !== "undefined") {
+        CoCreate.link.open(link);
+    } else if (link.hasAttribute("href")) {
+        let href = link.getAttribute("href") || "";
+        // Normalize both URLs to compare paths in a uniform way
+        const currentPath = new URL(location.href).pathname.replace(
+            "/index.html",
+            "/"
+        );
+        const targetPath = new URL(href, location.href).pathname.replace(
+            "/index.html",
+            "/"
+        );
 
-		if (currentPath !== targetPath) {
-			location.href = href;
-		}
-	}
+        if (currentPath !== targetPath) {
+            location.href = href;
+        }
+    }
 }
 
 Observer.init({
-	name: "actions",
-	types: ["addedNodes"],
-	selector: "[actions]",
-	callback(mutation) {
-		initActions(mutation.target);
-	}
+    name: "actions",
+    types: ["addedNodes"],
+    selector: "[actions]",
+    callback(mutation) {
+        initActions(mutation.target);
+    }
 });
 
 initActions();
