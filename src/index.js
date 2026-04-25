@@ -69,6 +69,9 @@ function eventFunction(event) {
 
     let index = 0;
     let stagedActions = [];
+    const chainState = {
+        aborted: false
+    };
     for (let action of actions) {
         let [name, params] = action.split("(");
         if (params) params = params.substring(0, params.length - 1);
@@ -76,10 +79,12 @@ function eventFunction(event) {
         stagedActions.push({ name, params });
     }
 
-    runAction(stagedActions, index, target);
+    runAction(stagedActions, index, target, chainState);
 }
 
-async function runAction(stagedActions, index, element) {
+async function runAction(stagedActions, index, element, chainState) {
+    if (chainState?.aborted) return;
+
     if (index >= stagedActions.length) {
         if (index == stagedActions.length) {
             runSubmit(element);
@@ -104,11 +109,26 @@ async function runAction(stagedActions, index, element) {
     if (actionDefinition) {
         const resolvedEndEvent =
             currentAction.endEvent || actionDefinition.endEvent;
+        let isResolved = false;
+
+        const resolveCurrentAction = (shouldContinue = true) => {
+            if (isResolved) return;
+            isResolved = true;
+
+            if (!shouldContinue) {
+                chainState.aborted = true;
+                return;
+            }
+
+            if (chainState.aborted) return;
+
+            runNextAction(stagedActions, index, element, chainState);
+        };
 
         element.addEventListener(
             resolvedEndEvent,
             function () {
-                runNextAction(stagedActions, index, element);
+                resolveCurrentAction(true);
             },
             { once: true }
         );
@@ -117,7 +137,15 @@ async function runAction(stagedActions, index, element) {
             const form = element.closest("form");
             currentAction.name = actionName;
             currentAction.endEvent = resolvedEndEvent;
+            currentAction.continue = () => {
+                resolveCurrentAction(true);
+            };
+            currentAction.abort = () => {
+                resolveCurrentAction(false);
+            };
             currentAction.end = (detail = {}) => {
+                if (isResolved) return;
+
                 element.dispatchEvent(
                     new CustomEvent(resolvedEndEvent, {
                         bubbles: true,
@@ -141,22 +169,23 @@ async function runAction(stagedActions, index, element) {
                 form,
                 ...currentAction
             });
-        } else runNextAction(stagedActions, index, element);
+        } else resolveCurrentAction(true);
     } else {
         let status = await runSpecialAction(
             stagedActions,
             index,
             element,
             actionName,
-            currentAction.params
+            currentAction.params,
+            chainState
         );
         if (status === "next") {
-            runNextAction(stagedActions, index, element);
+            runNextAction(stagedActions, index, element, chainState);
         }
     }
 }
 
-async function runSpecialAction(actions, index, element, actionName, params) {
+async function runSpecialAction(actions, index, element, actionName, params, chainState) {
     if (!params && actionName !== "submit" && actionName !== "disabled") return "next";
     let elements,
         status = "next";
@@ -171,7 +200,7 @@ async function runSpecialAction(actions, index, element, actionName, params) {
                         "Event Action (Received event from other section) ====== " +
                             params
                     );
-                    runNextAction(actions, index, element);
+                    runNextAction(actions, index, element, chainState);
                 },
                 { once: true }
             );
@@ -183,7 +212,7 @@ async function runSpecialAction(actions, index, element, actionName, params) {
             if (delayTime > 0) {
                 setTimeout(function () {
                     console.log("Timeout ======= " + params);
-                    runNextAction(actions, index, element);
+                    runNextAction(actions, index, element, chainState);
                 }, parseInt(params));
             }
             break;
@@ -206,7 +235,7 @@ async function runSpecialAction(actions, index, element, actionName, params) {
                 element.addEventListener(
                     "submitted",
                     (event) => {
-                        runNextAction(actions, index, element);
+                        runNextAction(actions, index, element, chainState);
                     },
                     { once: true } // Ensures the event is only handled once
                 );
@@ -272,8 +301,10 @@ async function runSpecialAction(actions, index, element, actionName, params) {
     return status;
 }
 
-function runNextAction(actions, index, element) {
-    runAction(actions, (index += 1), element);
+function runNextAction(actions, index, element, chainState) {
+    if (chainState?.aborted) return;
+
+    runAction(actions, (index += 1), element, chainState);
 }
 
 function runSubmit(element) {
