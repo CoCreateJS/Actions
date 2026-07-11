@@ -1,3 +1,17 @@
+# [1.22.0](https://github.com/CoCreate-app/CoCreate-actions/compare/v1.21.4...v1.22.0) (2026-07-11)
+
+
+### Bug Fixes
+
+* bump package versions ([0bf828c](https://github.com/CoCreate-app/CoCreate-actions/commit/0bf828c17dff970d2da96e62a35f50c4a7ea7a83))
+* removed post install and add add packages to apprved list ([28c8c62](https://github.com/CoCreate-app/CoCreate-actions/commit/28c8c62af7603f60cf24bf5d6e6d91fd326251e0))
+* semantic version handling ([4373204](https://github.com/CoCreate-app/CoCreate-actions/commit/437320400c1a9f228efce5bc469463411411b8ea))
+
+
+### Features
+
+* enhance action execution flow with abort capability ([58b5fc9](https://github.com/CoCreate-app/CoCreate-actions/commit/58b5fc981f423d051955f3d2be2616c26aba923f))
+
 ## [1.21.4](https://github.com/CoCreate-app/CoCreate-actions/compare/v1.21.3...v1.21.4) (2025-12-26)
 
 
