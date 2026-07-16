@@ -1,3 +1,11 @@
+## [1.22.1](https://github.com/CoCreate-app/CoCreate-actions/compare/v1.22.0...v1.22.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* update GitHub and Node.js actions to latest versions and improve semantic release configuration ([1c1f157](https://github.com/CoCreate-app/CoCreate-actions/commit/1c1f15795211b9376f8112a78d21e3412dab227c))
+* workflow ([67cd1f9](https://github.com/CoCreate-app/CoCreate-actions/commit/67cd1f9444ae86c67e0dcad3712becb95347031b))
+
 # [1.22.0](https://github.com/CoCreate-app/CoCreate-actions/compare/v1.21.4...v1.22.0) (2026-07-11)
 
 
