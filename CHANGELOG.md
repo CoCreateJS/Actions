@@ -1,3 +1,10 @@
+## [1.22.3](https://github.com/CoCreate-app/CoCreate-actions/compare/v1.22.2...v1.22.3) (2026-07-19)
+
+
+### Bug Fixes
+
+* set default branch to main ([56426ca](https://github.com/CoCreate-app/CoCreate-actions/commit/56426ca0fb7230cb143d150ce0b962bda11bd0f3))
+
 ## [1.22.2](https://github.com/CoCreate-app/CoCreate-actions/compare/v1.22.1...v1.22.2) (2026-07-17)
 
 
