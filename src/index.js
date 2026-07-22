@@ -1,6 +1,5 @@
 import Observer from "@cocreate/observer";
-import { queryElements } from "@cocreate/utils";
-import uuid from "@cocreate/uuid";
+import { queryElements, uuid } from "@cocreate/utils";
 
 const attribute = "actions";
 const actions = {};
@@ -101,7 +100,7 @@ async function runAction(stagedActions, index, element, chainState) {
         let name = actionName.split(".")[0];
         currentAction.method = actionName.substring(name.length + 1);
         currentAction.name = actionName = name;
-        currentAction.endEvent = uuid.generate(6);
+        currentAction.endEvent =  uuid(6);
     }
 
     const actionDefinition = actions[actionName];

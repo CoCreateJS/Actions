@@ -41,13 +41,11 @@
   },
   "dependencies": {
     "@cocreate/observer": "^1.20.0",
-    "@cocreate/utils": "^1.44.0",
-    "@cocreate/uuid": "^1.12.4"
+    "@cocreate/utils": "^1.44.0"
   },
   "allowScripts": {
     "@cocreate/observer@1.19.0": true,
     "@cocreate/utils@1.42.2": true,
-    "@cocreate/uuid@1.12.4": true,
     "@cocreate/webpack@1.4.3": true
   }
 }
