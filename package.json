@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@cocreate/observer": "^1.21.0",
-    "@cocreate/utils": "^1.50.0"
+    "@cocreate/utils": "^1.50.3"
   },
   "allowScripts": {
     "@cocreate/observer@1.19.0": true,
