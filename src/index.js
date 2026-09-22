@@ -116,6 +116,7 @@ async function runAction(stagedActions, index, element, chainState) {
 
             if (!shouldContinue) {
                 chainState.aborted = true;
+                chainState.disabledButton?.removeAttribute("disabled");
                 return;
             }
 
@@ -262,6 +263,7 @@ async function runSpecialAction(actions, index, element, actionName, params, cha
                     button.removeAttribute("disabled");
                 } else {
                     button.setAttribute("disabled", "");
+                    chainState.disabledButton = button;
                 }
             }
             break;
