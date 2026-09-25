@@ -6,6 +6,34 @@ const test = require('node:test');
 const source = readFileSync(require('node:path').join(__dirname, '../src/index.js'), 'utf8');
 const code = source.slice(source.indexOf('const attribute'), source.indexOf('Observer.init('));
 
+function dispatchActionClick(preventDefaultValue) {
+    let prevented = false;
+    let actionRan = false;
+    const target = {
+        tagName: 'LABEL',
+        getAttribute(name) {
+            if (name === 'actions') return 'native';
+            if (name === 'actions-prevent-default') return preventDefaultValue;
+            return null;
+        },
+        closest: () => null
+    };
+    const context = vm.createContext({
+        event: {
+            target,
+            preventDefault: () => { prevented = true; }
+        },
+        runAction: () => { actionRan = true; },
+        attribute: 'actions'
+    });
+    const eventFunction = source.slice(
+        source.indexOf('function eventFunction('),
+        source.indexOf('\nasync function runAction(')
+    );
+    vm.runInContext(`${eventFunction}\neventFunction(event);`, context);
+    return { prevented, actionRan };
+}
+
 async function run(names, initiallyDisabled = false, abort = true) {
     const attributes = new Map(initiallyDisabled ? [['disabled', '']] : []);
     const button = new EventTarget();
@@ -53,4 +81,12 @@ test('successful end and continue leave the button disabled', async () => {
 });
 test('an explicit second disabled action enables the button on success', async () => {
     assert.equal((await run(['disabled', 'stop', 'disabled'], false, false)).disabled, false);
+});
+
+test('actions prevent native browser behavior by default', () => {
+    assert.deepEqual(dispatchActionClick(null), { prevented: true, actionRan: true });
+});
+
+test('actions can preserve native browser behavior', () => {
+    assert.deepEqual(dispatchActionClick('false'), { prevented: false, actionRan: true });
 });

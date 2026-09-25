@@ -61,7 +61,9 @@ function eventFunction(event) {
         if (pattern.test(target.action)) return target.submit();
     }
 
-    event.preventDefault();
+    if (target.getAttribute(`${attribute}-prevent-default`) !== "false") {
+        event.preventDefault();
+    }
 
     let actions = (target.getAttribute(attribute) || "").split(/\s*,\s*/);
     if (actions.length === 0) return;
