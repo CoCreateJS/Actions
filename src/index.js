@@ -1,22 +1,70 @@
 import Observer from "@cocreate/observer";
 import { queryElements, uuid } from "@cocreate/utils";
+import "@cocreate/element-prototype";
 
 const attribute = "actions";
-const actions = {};
+const actionDefinitions = {};
+const pendingInvocations = new WeakMap();
+
+function getErrorTargets(element) {
+    const root = element.getRootNode();
+    return (element.getAttribute("aria-errormessage") || "")
+        .trim().split(/\s+/).filter(Boolean)
+        .map(id => root.getElementById?.(id)).filter(Boolean);
+}
+
+function setErrorMessage(element, message = "") {
+    const targets = getErrorTargets(element);
+    for (const target of targets) {
+        target.setValue(message);
+        target.hidden = !message;
+    }
+    if (element.hasAttribute("aria-errormessage")) {
+        element.setAttribute("aria-invalid", String(Boolean(message) && targets.length > 0));
+    }
+}
+
+function createActionError(element, action, reason) {
+    const frame = {
+        element,
+        action: {
+            name: action.name,
+            method: action.method,
+            params: action.params
+        }
+    };
+    if (Array.isArray(reason?.path)) {
+        return { ...reason, path: [frame, ...reason.path] };
+    }
+    const detail = reason instanceof Error
+        ? { message: reason.message, cause: reason }
+        : typeof reason === "string" ? { message: reason } : reason || {};
+    return {
+        ...detail,
+        code: detail.code || "action-aborted",
+        message: detail.message,
+        selector: detail.selector ?? action.params,
+        element,
+        action: frame.action,
+        cause: detail.cause,
+        path: [frame]
+    };
+}
 
 /**
- * name: string
- * callback: function
- * endEvent: string
- **/
+ * Register { name, callback, endEvent }; name accepts a string or array of aliases.
+ * Call end() or continue() to advance, or abort(reason) to stop the chain.
+ * An abort reason may be an Error, string, or { code, message, selector, cause }.
+ * Callback promises report rejections; fulfillment does not advance the chain.
+ */
 function init(data) {
     if (!Array.isArray(data)) data = [data];
     for (let { name, callback, endEvent } of data) {
         if (!Array.isArray(name)) name = [name];
         for (let i = 0; i < name.length; i++) {
-            if (actions[name[i]]) continue;
+            if (actionDefinitions[name[i]]) continue;
 
-            actions[name[i]] = {
+            actionDefinitions[name[i]] = {
                 name: name[i],
                 callback,
                 endEvent: endEvent || name[i]
@@ -43,17 +91,12 @@ function initActions(elements) {
 }
 
 function initEvent(element) {
-    element.addEventListener("click", eventFunction);
+    element.addEventListener("click", handleClick);
 }
 
-function eventFunction(event) {
-    let target = event.target;
-
-    if (!target.getAttribute(attribute)) {
-        target = event.target.closest(`[${attribute}]`);
-    }
-
-    if (!target) return;
+function handleClick(event) {
+    const target = event.target.closest?.(`[${attribute}]`);
+    if (target !== event.currentTarget) return;
 
     if (target.tagName.toLowerCase() === "form") {
         const pattern =
@@ -65,31 +108,81 @@ function eventFunction(event) {
         event.preventDefault();
     }
 
-    let actions = (target.getAttribute(attribute) || "").split(/\s*,\s*/);
-    if (actions.length === 0) return;
+    setErrorMessage(target);
 
-    let index = 0;
-    let stagedActions = [];
-    const chainState = {
-        aborted: false
-    };
-    for (let action of actions) {
+    // Action selectors are parsed by queryElements, not the attribute AST.
+    const actionList = (target.attributes.getNamedItem(attribute)?.value || "").split(/\s*,\s*/);
+    const stagedActions = [];
+    const invocation = pendingInvocations.get(target) || { invocationId: uuid(6) };
+    pendingInvocations.delete(target);
+    for (const action of actionList) {
         let [name, params] = action.split("(");
         if (params) params = params.substring(0, params.length - 1);
 
         stagedActions.push({ name, params });
     }
 
-    runAction(stagedActions, index, target, chainState);
+    runAction(stagedActions, 0, target, invocation);
 }
 
-async function runAction(stagedActions, index, element, chainState) {
-    if (chainState?.aborted) return;
+function finishChain(element, invocation, success, error) {
+    if (invocation.settled) return;
+    invocation.settled = true;
+    if (!success) {
+        invocation.disabledButton?.removeAttribute("disabled");
+        if (error?.message) setErrorMessage(element, error.message);
+    }
+    element.dispatchEvent(new CustomEvent(success ? "actionsEnd" : "actionsAbort", {
+        detail: { invocationId: invocation.invocationId, error }
+    }));
+    if (success) invocation.resolve?.();
+    else invocation.reject?.(error);
+}
+
+async function invokeActionTarget(target) {
+    if (!target.hasAttribute(attribute)) {
+        try {
+            target.click();
+        } catch (error) {
+            throw createActionError(target, { name: "click" }, error);
+        }
+        return;
+    }
+
+    initEvent(target);
+    return new Promise((resolve, reject) => {
+        const invocation = { invocationId: uuid(6), resolve, reject };
+        // The click handler consumes this invocation and settles it in finishChain.
+        pendingInvocations.set(target, invocation);
+        try {
+            target.click();
+            if (pendingInvocations.get(target) === invocation) {
+                throw {
+                    code: "action-not-started",
+                    message: "The targeted action could not start."
+                };
+            }
+        } catch (error) {
+            reject(createActionError(target, { name: "action" }, error));
+        } finally {
+            if (pendingInvocations.get(target) === invocation)
+                pendingInvocations.delete(target);
+        }
+    });
+}
+
+async function runAction(stagedActions, index, element, invocation) {
+    if (invocation.settled) return;
 
     if (index >= stagedActions.length) {
-        if (index == stagedActions.length) {
+        try {
             runSubmit(element);
             runLink(element);
+            finishChain(element, invocation, true);
+        } catch (error) {
+            console.error("Action chain failed:", error);
+            finishChain(element, invocation, false,
+                createActionError(element, { name: "actions" }, error));
         }
         return;
     }
@@ -105,35 +198,29 @@ async function runAction(stagedActions, index, element, chainState) {
         currentAction.endEvent =  uuid(6);
     }
 
-    const actionDefinition = actions[actionName];
+    const actionDefinition = actionDefinitions[actionName];
 
     if (actionDefinition) {
         const resolvedEndEvent =
             currentAction.endEvent || actionDefinition.endEvent;
         let isResolved = false;
 
-        const resolveCurrentAction = (shouldContinue = true) => {
+        const resolveCurrentAction = (shouldContinue = true, reason) => {
             if (isResolved) return;
             isResolved = true;
+            element.removeEventListener(resolvedEndEvent, onActionEnd);
 
             if (!shouldContinue) {
-                chainState.aborted = true;
-                chainState.disabledButton?.removeAttribute("disabled");
+                finishChain(element, invocation, false,
+                    createActionError(element, currentAction, reason));
                 return;
             }
 
-            if (chainState.aborted) return;
-
-            runNextAction(stagedActions, index, element, chainState);
+            runNextAction(stagedActions, index, element, invocation);
         };
 
-        element.addEventListener(
-            resolvedEndEvent,
-            function () {
-                resolveCurrentAction(true);
-            },
-            { once: true }
-        );
+        const onActionEnd = () => resolveCurrentAction(true);
+        element.addEventListener(resolvedEndEvent, onActionEnd, { once: true });
 
         if (actionDefinition.callback) {
             const form = element.closest("form");
@@ -142,8 +229,8 @@ async function runAction(stagedActions, index, element, chainState) {
             currentAction.continue = () => {
                 resolveCurrentAction(true);
             };
-            currentAction.abort = () => {
-                resolveCurrentAction(false);
+            currentAction.abort = (reason) => {
+                resolveCurrentAction(false, reason);
             };
             currentAction.end = (detail = {}) => {
                 if (isResolved) return;
@@ -166,148 +253,124 @@ async function runAction(stagedActions, index, element, chainState) {
                 );
             };
 
-            actionDefinition.callback.call(null, {
-                element,
-                form,
-                ...currentAction
-            });
+            try {
+                await actionDefinition.callback.call(null, {
+                    element,
+                    form,
+                    ...currentAction
+                });
+            } catch (error) {
+                console.error(`Action ${actionName} failed:`, error);
+                resolveCurrentAction(false, error);
+            }
         } else resolveCurrentAction(true);
     } else {
-        let status = await runSpecialAction(
-            stagedActions,
-            index,
-            element,
-            actionName,
-            currentAction.params,
-            chainState
-        );
-        if (status === "next") {
-            runNextAction(stagedActions, index, element, chainState);
+        try {
+            const shouldContinue = await runBuiltInAction(
+                stagedActions,
+                index,
+                element,
+                actionName,
+                currentAction.params,
+                invocation
+            );
+            if (shouldContinue) {
+                runNextAction(stagedActions, index, element, invocation);
+            }
+        } catch (error) {
+            console.error(`Action ${actionName} failed:`, error);
+            finishChain(element, invocation, false,
+                createActionError(element, currentAction, error));
         }
     }
 }
 
-async function runSpecialAction(actions, index, element, actionName, params, chainState) {
-    if (!params && actionName !== "submit" && actionName !== "disabled") return "next";
-    let elements,
-        status = "next";
+async function runBuiltInAction(stagedActions, index, element, actionName, params, invocation) {
+    if (actionName === "action" && !params) {
+        throw {
+            code: "missing-action-selector",
+            message: "No action target was specified."
+        };
+    }
+    if (!params && actionName !== "submit" && actionName !== "disabled") return true;
     switch (actionName) {
         case "event":
-            console.log("Waiting Event....");
-            status = "";
             element.addEventListener(
                 params,
-                () => {
-                    console.log(
-                        "Event Action (Received event from other section) ====== " +
-                            params
-                    );
-                    runNextAction(actions, index, element, chainState);
-                },
+                () => runNextAction(stagedActions, index, element, invocation),
                 { once: true }
             );
-            break;
-        case "timeout":
-            status = "";
-
-            let delayTime = parseInt(params);
-            if (delayTime > 0) {
-                setTimeout(function () {
-                    console.log("Timeout ======= " + params);
-                    runNextAction(actions, index, element, chainState);
-                }, parseInt(params));
+            return false;
+        case "timeout": {
+            const delay = parseInt(params);
+            if (delay > 0) {
+                setTimeout(() => runNextAction(stagedActions, index, element, invocation), delay);
             }
-            break;
-        case "action":
-            elements = queryElements({
-                element,
-                selector: params,
-                type: "selector"
-            });
-            for (let i = 0; i < elements.length; i++) {
-                elements[i].click();
+            return false;
+        }
+        case "action": {
+            const elements = queryElements({ element, selector: params, type: "selector" });
+            if (!elements.length) {
+                throw {
+                    code: "action-target-not-found",
+                    message: "The targeted action could not be found.",
+                    selector: params
+                };
             }
+            await Promise.all(elements.map(invokeActionTarget));
             break;
-        case "submit":
-            status = "";
-
-            let form = element.closest("form");
+        }
+        case "submit": {
+            const form = element.closest("form");
             if (form) {
-                // Attach a listener for the custom "submitted" event
                 element.addEventListener(
                     "submitted",
-                    (event) => {
-                        runNextAction(actions, index, element, chainState);
-                    },
-                    { once: true } // Ensures the event is only handled once
+                    () => runNextAction(stagedActions, index, element, invocation),
+                    { once: true }
                 );
-
-                // Create a custom submit event with additional details
                 const submitEvent = new CustomEvent("submit", {
                     bubbles: true,
                     cancelable: true,
-                    detail: {
-                        element, // Add details about the triggering element
-                        form // Add a reference to the form
-                    }
+                    detail: { element, form }
                 });
-
-                // Dispatch the custom submit event
-                if (form.dispatchEvent(submitEvent)) {
-                    form.submit(); // Proceed with form submission if the event isn't canceled
-                }
+                if (form.dispatchEvent(submitEvent)) form.submit();
             }
-            break;
-        case "disabled":
-            let button = element.closest("button");
+            return false;
+        }
+        case "disabled": {
+            const button = element.closest("button");
             if (button) {
                 if (button.hasAttribute("disabled")) {
                     button.removeAttribute("disabled");
                 } else {
                     button.setAttribute("disabled", "");
-                    chainState.disabledButton = button;
+                    invocation.disabledButton = button;
                 }
             }
             break;
-        case "read":
-        case "save":
-        case "renderValue":
-        default:
-            elements = queryElements({
-                element,
-                selector: params,
-                type: "selector"
-            });
-            
-            let promises = [];
-            for (let i = 0; i < elements.length; i++) {
-                if (typeof elements[i][actionName] === "function") {
-                    let res = elements[i][actionName]();
-                    // If the function returns a Promise, queue it to be awaited
-                    if (res instanceof Promise) {
-                        promises.push(res);
+        }
+        default: {
+            const elements = queryElements({ element, selector: params, type: "selector" });
+            try {
+                await Promise.all(elements.map(async target => {
+                    if (typeof target[actionName] === "function") {
+                        await target[actionName]();
                     }
-                }
+                }));
+            } catch (error) {
+                throw {
+                    code: "action-method-failed",
+                    message: error?.message || `The ${actionName} action could not complete.`,
+                    cause: error
+                };
             }
-            
-            if (promises.length > 0) {
-                try {
-                    await Promise.all(promises);
-                } catch (err) {
-                    console.error(`Error executing ${actionName}:`, err);
-                    status = "error"; // Prevent 'runNextAction' on critical failure
-                }
-            }
-            break;
+        }
     }
-
-    return status;
+    return true;
 }
 
-function runNextAction(actions, index, element, chainState) {
-    if (chainState?.aborted) return;
-
-    runAction(actions, (index += 1), element, chainState);
+function runNextAction(stagedActions, index, element, invocation) {
+    runAction(stagedActions, index + 1, element, invocation);
 }
 
 function runSubmit(element) {
