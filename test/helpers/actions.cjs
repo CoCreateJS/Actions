@@ -12,6 +12,7 @@ class CustomEvent extends Event {
 function createActions() {
     const elements = [];
     const selections = new Map();
+    const opened = [];
     let nextId = 0;
     const document = {
         getElementById: id => elements.find(element => element.getAttribute('id') === id),
@@ -94,11 +95,12 @@ function createActions() {
         console: { log() {}, error() {} },
         uuid: () => `invocation-${++nextId}`,
         queryElements: ({ selector }) => selections.get(selector) || [],
-        CoCreate: {}, location: { href: 'https://example.test/' }
+        CoCreate: {}, location: { href: 'https://example.test/' },
+        window: { open: (...args) => opened.push(args) }
     });
     const source = readFileSync(join(__dirname, '../../src/index.js'), 'utf8');
     const code = source.slice(source.indexOf('const attribute'), source.indexOf('Observer.init('));
-    vm.runInContext(`${code}\nglobalThis.actionsTest = { init, initialize: initActions };`, context);
+    vm.runInContext(`${code}\nglobalThis.actionsTest = { init, initialize: initActions, api: CoCreateActions };`, context);
 
     function element(attributes, tagName, parentElement) {
         return new Element(attributes, tagName, parentElement);
@@ -110,6 +112,8 @@ function createActions() {
     }
 
     return {
+        api: context.actionsTest.api, globals: context.CoCreate,
+        location: context.location, opened,
         element, activate, init: context.actionsTest.init,
         initialize: context.actionsTest.initialize,
         select: (selector, targets) => selections.set(selector, targets),

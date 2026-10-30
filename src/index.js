@@ -73,6 +73,13 @@ function init(data) {
     }
 }
 
+const configuredHrefHandler = globalThis.CoCreate?.actions?.href;
+const CoCreateActions = {
+    init,
+    // Replace CoCreate.actions.href to customize navigation for completed chains.
+    href: configuredHrefHandler === undefined ? runLink : configuredHrefHandler
+};
+
 function initActions(elements) {
     if (!elements) {
         elements = document.querySelectorAll("[actions]");
@@ -114,6 +121,7 @@ function handleClick(event) {
     const actionList = (target.attributes.getNamedItem(attribute)?.value || "").split(/\s*,\s*/);
     const stagedActions = [];
     const invocation = pendingInvocations.get(target) || { invocationId: uuid(6) };
+    invocation.event = event;
     pendingInvocations.delete(target);
     for (const action of actionList) {
         let [name, params] = action.split("(");
@@ -177,7 +185,12 @@ async function runAction(stagedActions, index, element, invocation) {
     if (index >= stagedActions.length) {
         try {
             runSubmit(element);
-            runLink(element);
+            if (typeof CoCreateActions.href === "function") {
+                await CoCreateActions.href(element, {
+                    event: invocation.event,
+                    invocationId: invocation.invocationId
+                });
+            }
             finishChain(element, invocation, true);
         } catch (error) {
             console.error("Action chain failed:", error);
@@ -389,27 +402,28 @@ function runSubmit(element) {
 function runLink(element) {
     let link = element.closest("[href], [target], [state_to]");
     if (!link) link = element.querySelector("[href], [target], [state_to]");
-    if (link) run(link);
+    if (!link || link.hasAttribute("download")) return;
+
+    run(link);
 }
 
 function run(link) {
-    if (typeof CoCreate.link !== "undefined") {
-        CoCreate.link.open(link);
-    } else if (link.hasAttribute("href")) {
-        let href = link.getAttribute("href") || "";
-        // Normalize both URLs to compare paths in a uniform way
-        const currentPath = new URL(location.href).pathname.replace(
-            "/index.html",
-            "/"
-        );
-        const targetPath = new URL(href, location.href).pathname.replace(
-            "/index.html",
-            "/"
-        );
+    const href = link.getAttribute("href");
+    if (!href) return;
 
-        if (currentPath !== targetPath) {
-            location.href = href;
-        }
+    const target = link.getAttribute("target");
+    if (target && target !== "_self") {
+        window.open(href, target);
+        return;
+    }
+
+    const currentUrl = new URL(location.href);
+    const targetUrl = new URL(href, location.href);
+    const currentPath = currentUrl.pathname.replace("/index.html", "/");
+    const targetPath = targetUrl.pathname.replace("/index.html", "/");
+
+    if (currentPath !== targetPath || currentUrl.hash !== targetUrl.hash) {
+        location.href = href;
     }
 }
 
@@ -424,4 +438,4 @@ Observer.init({
 
 initActions();
 
-export default { init };
+export default CoCreateActions;
