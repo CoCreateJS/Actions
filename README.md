@@ -1,362 +1,335 @@
-# @cocreate/api
+# @cocreate/actions
 
-A dynamic, multi-tenant API execution gateway, proxy engine, and webhook orchestration routing layer. It securely manages distributed integration architectures, allowing applications to configure, evaluate, and execute complex third-party API configurations and multi-step macro workflows on the fly. By coupling an Abstract Syntax Tree (AST) evaluation sandbox (`NativeSandbox`) with strict tenant environmental isolation, it transforms declarative configurations into low-latency outbound integrations and secure inbound webhooks without introducing cross-tenant data leaks.
-
-The package ships both halves of the integration. On the client, third-party APIs are consumed declaratively through HTML5 attributes or through an equivalent JavaScript API. On the server, the gateway resolves credentials, evaluates configurations, and executes the outbound request, so API keys never reach the browser.
+A sequential execution pipeline for the browser, configured entirely through HTML5 attributes. A single `actions` attribute chains any number of component executions together: each action runs, signals completion, and only then does the next one begin. Actions are contributed by every CoCreate module, so saving a record, calling a third-party API, rendering a template, waiting on an event, and following a link compose into one declarative sequence without writing JavaScript.
 
 ---
 
 ## Documentation
 
-For complete API references, integration guides, webhook configuration, and usage examples, visit the **[CoCreate API Documentation](https://cocreatejs.com/docs/api)**.
+For a complete guide and working demo refer to the [documentation](https://CoCreateJS.com/docs/actions).
 
 ## Table of Contents
 
-- [Documentation](#documentation)
-- [Features](#features)
-- [Dynamic Operations Sandbox](#dynamic-operations-sandbox)
-- [Installation](#installation)
-- [Client Usage: HTML5 Attributes](#client-usage-html5-attributes)
-- [Client Usage: JavaScript API](#client-usage-javascript-api)
-- [Attribute Reference](#attribute-reference)
-- [Server Usage](#server-usage)
-- [How it Works](#how-it-works)
-- [Architecture and Payload Specs](#architecture-and-payload-specs)
-- [Security Implementations](#security-implementations)
-- [How to Contribute](#how-to-contribute)
-- [License](#license)
+* [Features](#features)
+* [Installation](#installation)
+* [Usage](#usage)
+* [How it Works](#how-it-works)
+* [Anatomy of an Action Chain](#anatomy-of-an-action-chain)
+* [Sequencing and Completion](#sequencing-and-completion)
+* [Control Actions](#control-actions)
+* [Element Method Actions](#element-method-actions)
+* [Registered Actions](#registered-actions)
+* [Targeting Elements](#targeting-elements)
+* [JavaScript API](#javascript-api)
+* [Behavior Notes](#behavior-notes)
+* [Announcements](#announcements)
+* [Roadmap](#roadmap)
+* [How to Contribute](#how-to-contribute)
+* [About](#about)
+* [License](#license)
 
 ---
 
 ## Features
 
-* **Abstract Syntax Tree (AST) Micro-Operators:** Evaluates functional configuration contexts inline, supporting expressive syntax tags (like `$data`, `$event`, `$actions`, and `$request`) along with custom business logic operators.
-* **Declarative Client Interface:** Configures complete request and response cycles using HTML5 attributes, assembling payloads from form fields and mapping results back into the document without provider-specific code.
-* **Tenant Environmental Isolation Firewall:** Guarantees cryptographic data partitioning by intercepting execution matrices and forcefully injecting bound `organization_id` and verified `host` values into core operations.
-* **Real-Time WebSocket Integration Matrix:** Seamlessly hooks into live server networks (`wsManager`), listening for incoming `api` and `endpoint` actions and streaming real-time operational state payloads directly back to the client.
-* **Dual Outbound Execution Vectors:** Wire-speeds native, pre-constructed HTTP payloads instantly, or dynamically builds custom multi-step outbound integrations by resolving runtime metadata against persistence layers.
-* **Cryptographic Signatures & JWT Orchestration:** Features native, low-latency hooks to generate JSON Web Tokens (`$jwt`) using HMAC-SHA256, alongside timing-attack-safe webhook signature verification (`verifySignature`).
-* **Sealed AST Runtime Sandbox:** Features a hardened utility matrix containing sandboxed global objects (`JSON`, `Array`, `Math`) and helper methods (like Base64 encoding/decoding and URL encoders), safely wrapping calculations outside the global scope.
-* **Native Edge Stream Inspection:** Inspects active server response buffers automatically, failing back to a clean 200 OK only if macro pipelines didn't forcefully complete or close the stream.
-
----
-
-## Dynamic Operations Sandbox
-
-The engine evaluates standard properties and custom functional variables using a predefined sandbox layer. This allows configuration profiles to extract fields safely on the fly.
-
-| Core Operator Scope | Extracted Source Value |
-| --- | --- |
-| **`$data`** | Extracts standard key parameters from the active input execution payload (`data`). |
-| **`$event`** | Parses raw incoming JSON parameters transmitted via active webhook streams. |
-| **`$actions`** | Exposes an array of historical execution artifacts from previous macro pipeline links. |
-| **`$request` / `$header`** | Exposes underlying HTTP request properties, methods, and incoming network parameters. |
-| **`$jwt`** | Triggers an active cryptographic signing loop, building a secure JWT token from properties. |
+* **Declarative Sequencing:** Chain any number of executions in a single attribute, running strictly in order.
+* **Asynchronous Awareness:** Each action signals its own completion, so database writes, network requests, and renders finish before the next step starts.
+* **Universal Registration:** Any module can contribute an action by name, making its behavior available to markup across the entire application.
+* **Element Method Invocation:** Call methods directly on queried elements, awaiting any promises they return.
+* **Flow Control:** Wait for events, delay execution, trigger other chains, submit forms, and toggle button state as first-class steps.
+* **Abort Semantics:** An action can halt the remainder of the chain when a step fails or a condition is not met.
+* **Relational Targeting:** Action parameters accept the full CoCreate selector grammar, including `$parent`, `$next`, `$closest`, and `$document`.
+* **Automatic Binding:** Elements added to the DOM later are bound automatically, so rendered templates behave like static markup.
 
 ---
 
 ## Installation
 
 ```bash
-npm install @cocreate/api
+npm install @cocreate/actions
+```
+
+```bash
+yarn add @cocreate/actions
+```
+
+### CDN
+
+```html
+<script src="https://cdn.CoCreateJS.com/actions/latest/CoCreate-actions.min.js"></script>
 ```
 
 ---
 
 ## Usage
 
-The API engine is consumed two ways. On the client, integrations are declared entirely with HTML5 attributes or driven through the JavaScript API. On the server, the gateway resolves credentials, evaluates configurations, and performs the outbound request.
+### Chain Executions
 
----
-
-## Client Usage: HTML5 Attributes
-
-The client requires no provider-specific code. Declaring a provider on a container registers it, and every element carrying that provider's attributes contributes a field to the outbound payload or receives a field from the response.
-
-### Declare the Provider
+Actions run left to right. Each one waits for the previous to complete.
 
 ```html
-<form api="stripe"></form>
+<button actions="save, reset">Save</button>
 ```
 
-The value of `api` is the provider name. It becomes the attribute prefix used by every field, the action name used to trigger the request, and the payload key sent over the socket. `module` is accepted as an alias.
+### Pass Parameters
 
-### Build a Request
-
-Each participating element declares the method it belongs to and the path it populates.
+A parameter is supplied in parentheses and is usually a selector.
 
 ```html
-<form api="stripe">
-	<input stripe="customers.create" stripe-key="email" />
-	<input stripe="customers.create" stripe-key="metadata.workspace" value="production" hidden />
-
-	<button actions="stripe.customers.create">Create customer</button>
-</form>
+<button actions="save, action($document #refresh-list)">Save</button>
 ```
 
-Clicking the button collects every `[stripe="customers.create"]` element in the form, reads each value, and assembles the payload from the `stripe-key` paths:
+### Chain Across Modules
 
-```json
-{
-	"method": "stripe.customers.create",
-	"stripe": {
-		"email": "developer@CoCreateJS.com",
-		"metadata": { "workspace": "production" }
-	},
-	"status": "await"
-}
-```
-
-Keys use dot notation for nesting and bracket notation for indexes, so `messages[0].content` and `metadata.workspace` both resolve to nested objects. A key ending in `[]` appends to an array, allowing several elements to contribute entries to the same collection.
-
-### Receive a Response
-
-An element marked `-request="false"` is excluded from the outbound payload and used only to receive a value from the response.
+Because every module registers its actions by name, a single chain can persist a record, call an API, and update the interface.
 
 ```html
-<input
-	stripe="customers.create"
-	stripe-key="id"
-	stripe-request="false"
-	hidden />
+<button actions="save, stripe.customers.create, render, reset">
+	Create customer
+</button>
 ```
 
-When the response arrives, the value at that path is written into the element. Use `-response="false"` for the inverse: a field that is sent but never overwritten. A key of `{}` maps the entire provider payload rather than a single path.
-
-### Chain the Result
-
-Because the response is written with the standard value pipeline, any binding module can react to it.
+### Delay and Wait
 
 ```html
-<input
-	stripe="customers.create"
-	stripe-key="id"
-	stripe-request="false"
-	input-query="$document #customer-id"
-	input.value="$value"
-	hidden />
+<button actions="save, timeout(1000), action($document #notify)">Save</button>
 ```
-
-### Choose the Trigger
-
-By default a request runs only when the action fires. `-event` opts the element into additional triggers.
-
-```html
-<input
-	currency="rates.read"
-	currency-key="base"
-	currency-event="input, onload" />
-```
-
-Available trigger types are `action`, `input`, `onload`, `nodeObserver`, and `attributeObserver`.
-
-### Scope and Endpoints
-
-Fields are collected from the nearest ancestor `form`, or from the document when the element is not inside one, so several independent integrations can coexist on one page. Elements inside a `[template]` are skipped, keeping templates out of live payloads.
-
-An `endpoint` attribute selects the configured route, and a `query` attribute marks the request as a query.
-
-```html
-<input stripe="customers.create" endpoint="POST /v1/customers" hidden />
-```
-
-### Render Errors
-
-When the gateway returns an error, the client renders it into any template matching the provider name, receiving `type`, `method`, `status`, and `message`.
-
-```html
-<div template="stripe-error">{{message}}</div>
-```
-
----
-
-## Client Usage: JavaScript API
-
-The same pipeline is available programmatically for providers that need registration options, custom handlers, or imperative execution.
-
-### Register a Provider
-
-```javascript
-import api from "@cocreate/api";
-
-api.init({
-	name: "stripe",
-	endPoints: {},
-	options: { socket: true }
-});
-```
-
-Calling `init()` without arguments scans the document for `[api]` and `[module]` elements and registers each provider it finds. Registration also creates the socket connection unless `options.socket` is `false`.
-
-### Execute a Request
-
-```javascript
-api.request({
-	name: "stripe",
-	method: "customers.create",
-	form: document.querySelector("#billing"),
-	type: "action"
-});
-```
-
-### Work With the Payload Directly
-
-```javascript
-const data = await api.getData({
-	name: "stripe",
-	method: "customers.create",
-	form: document.querySelector("#billing")
-});
-
-await api.send({ name: "stripe", method: "customers.create", data });
-```
-
-`send()` transmits over the CoCreate socket as `provider.method` with the payload under the provider key, awaiting the correlated response before mapping it back into the document.
-
-### Custom Handlers
-
-If a registered module defines a handler for a method, its `request` and `response` functions take precedence over the default collection and mapping behavior. This is the extension point for providers needing bespoke serialization, such as third-party SDK elements.
-
----
-
-## Server Usage
-
-### Module Initialization
-
-Bind the API framework directly during the bootstrapping phase of your core `CoCreateServer` application matrix.
-
-```javascript
-import apiGateway from '@cocreate/api';
-import { CoCreateServer } from '@cocreate/server';
-
-// Boot the primary application server instance
-const serverContext = await CoCreateServer.start();
-
-// Initialize the API engine and register WebSocket listeners
-await apiGateway.init(serverContext);
-```
-
-### Direct Programmatic API Execution
-
-Execute complex third-party outbound macro operations using unified integration objects.
-
-```javascript
-import apiGateway from '@cocreate/api';
-
-// The method identifies the provider credentials, and the endpoint resolves the data model
-const payload = {
-  organization_id: "64b9a32e18f21bc56789abcd",
-  method: "stripe",
-  endpoint: "POST /v1/customers",
-  stripe: {
-    email: "$data.userEmail",
-    metadata: {
-      workspace: "production"
-    }
-  },
-  userEmail: "developer@CoCreateJS.com"
-};
-
-const result = await apiGateway.executeApi(payload);
-```
-
----
-
-## Attribute Reference
-
-`name` refers to the provider declared by the `api` attribute, for example `stripe` or `openai`.
-
-| Attribute | Role |
-| --- | --- |
-| `api="name"` | Declares and registers the provider. `module` is an accepted alias. |
-| `name="method"` | Marks the element as a participant in that method's request and response. |
-| `name-key="path"` | Path the element populates or receives. Supports dot and bracket notation, `[]` to append to an array, and `{}` for the entire payload. |
-| `name-event="types"` | Trigger types that perform a request: `action`, `input`, `onload`, `nodeObserver`, `attributeObserver`. Defaults to `action`. |
-| `name-request="false"` | Excludes the element from the outbound payload, making it response-only. |
-| `name-response="false"` | Excludes the element from response mapping, making it request-only. |
-| `endpoint="METHOD /route"` | Sets the endpoint resolved by the gateway. |
-| `query` | Flags the request as a query. |
-| `template_id="id"` | Renders the response through the matching template instead of setting a value. |
-| `actions="name.method"` | Triggers the request, and participates in action chains. |
-
-### Notes
-
-* Fields are gathered from the nearest ancestor `form`, falling back to the document.
-* Elements inside a `[template]` are excluded from payload collection.
-* Elements carrying an `actions` attribute are skipped during response mapping so that chained behavior is not overwritten.
-* Requests are sent with broadcasting disabled, so a payload is never echoed to other clients.
 
 ---
 
 ## How it Works
 
-1. **Bootstrap & Event Binding:** During `init()`, the module hooks directly into the server's WebSocket framework (`wsManager`), capturing incoming `api` and `endpoint` event signals to route them to the execution handler.
-2. **Context and Firewall Initialization:** For every outbound execution, the engine evaluates the parameters against a parent context firewall. Security profiles match inbound connections against verified socket bounds, locking `organization_id` and `host` configurations.
-3. **Macro Configuration Resolving:** The engine sends queries through the CRUD synchronization layer to match configuration files against stored endpoints or active integration details inside the database collection.
-4. **AST Matrix Processing:** The router recursively scans headers, parameters, and bodies via `processOperators()`. Found strings matching active variables (such as `$` prefixes) are securely compiled in the isolated `NativeSandbox` environment.
-5. **Outbound Network Fetching:** The system builds the request profile, forcefully sets content headers, maps an `AbortController` timeout circuit breaker (15-second cutoff), and executes the request using the runtime's native `fetch` implementation.
-6. **Payload Delivery & Webhook Dispatching:** Webhook targets matching inbound edge rules validate security values, execute configured workflows sequentially, and return structured responses.
+1. A click listener is bound to every `[actions]` element, including elements inserted later.
+2. When triggered, the attribute is split on commas into an ordered list of staged actions.
+3. Each entry is parsed into a name and optional parenthesized parameters. A name containing a dot is split into an action name and a method, so `stripe.customers.create` invokes the `stripe` action with the method `customers.create`.
+4. The first action runs. The pipeline attaches a one-time listener for that action's completion event before invoking it.
+5. When the completion event fires, the next action starts. This repeats until the chain is exhausted or aborted.
+6. Once every action has completed, the pipeline performs a native form submission if a real form action is present, then follows any link on the element.
 
 ---
 
-## Architecture and Payload Specs
+## Anatomy of an Action Chain
 
-### Unified Payload Object Schema
+```html
+<button actions="save, timeout(500), stripe.customers.create">Go</button>
+```
 
-The API engine relies on flat, declarative payload objects passed through the execution pipeline.
-
-| Field Element | Type | Role |
-| --- | --- | --- |
-| `organization_id` | `String` | **Required.** Targets the tenant profile used to resolve integrations and credentials. |
-| `method` | `String` | **Required.** Provider identity (for example `"stripe"`). |
-| `endpoint` | `String` | **Required.** HTTP method and route used to locate the configured endpoint (for example `"POST /v1/customers"`). |
-| `[providerName]` | `Object` | Provider-specific input object (for example `stripe`) that is processed through the AST engine. |
-
-### Context Engine Parameter Schema
-
-The API engine creates an execution context for every request.
-
-| Field Element | Type | Role |
-| --- | --- | --- |
-| `data` | `Object` | Input payload supplied to the execution pipeline. |
-| `event` | `Object` | Parsed webhook request body. |
-| `actions` | `Array` | Results accumulated from previous workflow steps. |
-| `organization_id` | `String` | Tenant identifier. |
-| `host` | `String` | Verified tenant host used for isolation. |
-| `crud` / `wsManager` | `Object` | References to the CRUD layer and WebSocket manager. |
+| Part | Meaning |
+| ---- | ------- |
+| `save` | A registered action, resolved by name |
+| `,` | Sequential separator, the next action waits for the previous |
+| `timeout(500)` | An action with a parameter |
+| `stripe.customers.create` | Action `stripe` invoked with method `customers.create` |
 
 ---
 
-## Security Implementations
+## Sequencing and Completion
 
-> [!WARNING]
-> Parent execution context always overrides incoming payload values to prevent cross-tenant access or privilege escalation.
+An action is considered finished when its **completion event** fires on the element. Registration declares that event, and it defaults to the action's own name.
 
-### Context Sandboxing
+```javascript
+Actions.init({
+	name: "save",
+	endEvent: "saved",
+	callback: (action) => { /* … */ }
+});
+```
 
-Internal services such as `crud` and `wsManager` intercept execution arguments and automatically enforce the authenticated tenant context. Even if a malicious configuration attempts to override tenant information, the runtime replaces it with the verified execution context.
+The callback receives everything needed to do its work and to report back:
 
-### Timing-Safe Signature Verification
+| Property | Description |
+| -------- | ----------- |
+| `element` | The element carrying the `actions` attribute |
+| `form` | The closest ancestor form, when present |
+| `name` | Resolved action name |
+| `method` | Method portion of a dotted action name |
+| `params` | Parameter string, when supplied |
+| `endEvent` | Completion event the pipeline is listening for |
+| `end(detail)` | Dispatches the completion event, advancing the chain |
+| `continue()` | Advances the chain directly |
+| `abort()` | Halts the chain, skipping all remaining actions |
 
-Inbound webhooks configured with authentication rules are validated using `crypto.timingSafeEqual`, preventing timing attacks during signature verification.
+An action that neither dispatches its completion event nor calls `continue()` or `abort()` leaves the chain waiting, which is the intended behavior for steps that resolve later.
+
+Actions written with a dotted name receive a unique completion event per run, so concurrent chains using the same provider never resolve one another.
+
+---
+
+## Control Actions
+
+These are always available and require no registration.
+
+| Action | Parameter | Behavior |
+| ------ | --------- | -------- |
+| `timeout(ms)` | milliseconds | Pauses the chain for the given duration |
+| `event(name)` | event name | Waits for that event to fire on the element |
+| `action(selector)` | selector | Clicks the matching elements, triggering their own chains |
+| `submit` | none | Dispatches a cancelable submit on the closest form and waits for a `submitted` event |
+| `disabled` | none | Toggles the `disabled` attribute on the closest button |
+
+```html
+<button actions="disabled, save, disabled">Save</button>
+```
+
+```html
+<button actions="save, event(uploaded), render">Save and wait for upload</button>
+```
+
+---
+
+## Element Method Actions
+
+When a name is not registered and is not a control action, the pipeline treats it as a **method call on the queried elements**. Every match that exposes a function of that name has it invoked, and any returned promises are awaited before the chain continues.
+
+```html
+<button actions="read($document #profile)">Reload profile</button>
+```
+
+This calls `read()` on `#profile`. The same mechanism covers `renderValue`, `getValue`, and any method a module adds to an element, which makes the pipeline extensible without registering anything.
+
+> A method action requires a parameter to select its targets. `submit` and `disabled` are the only control actions that operate without one.
+
+---
+
+## Registered Actions
+
+Modules register their actions on import. Commonly available names include:
+
+| Action | Completion Event | Provided By |
+| ------ | ---------------- | ----------- |
+| `save` | `saved` | `@cocreate/elements` |
+| `delete` | `deleted` | `@cocreate/elements` |
+| `reset` | `reset` | `@cocreate/elements` |
+| `render` | `render` | `@cocreate/render` |
+| `click`, `toggle`, `hover`, `input`, `change`, `focus`, `blur`, and every other event prefix | `<name>End` | `@cocreate/events` |
+| Any provider declared with `api="name"` | per run | `@cocreate/api` |
+
+Because event prefixes are registered as actions, a binding can be invoked as a step rather than by user interaction:
+
+```html
+<button actions="save, click($document #panel)">Save and open panel</button>
+```
+
+---
+
+## Targeting Elements
+
+Parameters accept standard CSS selectors plus the CoCreate relational operators, and a trailing `[]` selects every match rather than the first.
+
+| Operator | Resolves To |
+| -------- | ----------- |
+| `$document` | The owning document |
+| `$parent` | The parent element |
+| `$next` | The next element sibling |
+| `$previous` | The previous element sibling |
+| `$closest <selector>` | Nearest matching ancestor |
+| `$frame` | The frame element of the current document |
+| `$top` | The top-level document |
+
+```html
+<button actions="save, action($closest .card .refresh[])">Save</button>
+```
+
+---
+
+## JavaScript API
+
+### Register an Action
+
+```javascript
+import Actions from "@cocreate/actions";
+
+Actions.init({
+	name: "notify",
+	endEvent: "notified",
+	callback: async (action) => {
+		await sendNotification(action.params);
+		action.end();
+	}
+});
+```
+
+### Register Several at Once
+
+`init()` accepts an array, and `name` may itself be an array of aliases.
+
+```javascript
+Actions.init([
+	{ name: ["publish", "release"], endEvent: "published", callback: publish },
+	{ name: "archive", endEvent: "archived", callback: archive }
+]);
+```
+
+Registration is idempotent: a name that is already registered is left untouched, so the first module to claim a name owns it.
+
+### Abort a Chain
+
+```javascript
+Actions.init({
+	name: "validate",
+	callback: (action) => {
+		if (!action.form.checkValidity()) return action.abort();
+		action.end();
+	}
+});
+```
+
+```html
+<button actions="validate, save, reset">Submit</button>
+```
+
+---
+
+## Behavior Notes
+
+* Chains are triggered by `click`. Elements without a native click target can still be driven from another chain using `action(selector)`.
+* The pipeline resolves the nearest `[actions]` ancestor, so icons and spans inside a button trigger the button's chain.
+* Default click behavior is prevented while a chain runs. A form whose `action` is a real URL submits natively instead.
+* After the final action, a submit button inside a form with a real action URL submits the form, and any `href`, `target`, or `state_to` on the element is followed.
+* Aborting stops every remaining action in the chain, including the trailing submit and link behavior.
+
+---
+
+## Announcements
+
+All updates to this library are documented in our [CHANGELOG](https://github.com/CoCreateJS/CoCreate-actions/blob/master/CHANGELOG.md) and [releases](https://github.com/CoCreateJS/CoCreate-actions/releases). You may also subscribe to email for releases and breaking changes.
+
+---
+
+## Roadmap
+
+Upcoming enhancements include:
+
+* Conditional actions and branching
+* Parallel action groups
+* Error handling and retry policies
+* Named chains reusable across elements
+* Development mode tracing of chain execution
+
+If you are interested in the future direction of this project, please take a look at our open [issues](https://github.com/CoCreateJS/CoCreate-actions/issues) and [pull requests](https://github.com/CoCreateJS/CoCreate-actions/pulls). We would love to hear your feedback.
 
 ---
 
 ## How to Contribute
 
-We encourage contributions to all CoCreate libraries. Please see our **[CONTRIBUTING.md](https://github.com/CoCreateJS/CoCreate-api/blob/master/CONTRIBUTING.md)** guide for development workflows and contribution guidelines.
+We encourage contribution to our libraries (you might even score some nifty swag), please see our [CONTRIBUTING](https://github.com/CoCreateJS/CoCreate-actions/blob/master/CONTRIBUTING.md) guide for details.
 
-If you discover a bug or would like to request a feature, please open an issue on our **[GitHub Issues](https://github.com/CoCreateJS/CoCreate-api/issues)** tracker.
+We want this library to be community-driven, and CoCreate led. We need your help to realize this goal. To help make sure we are building the right things in the right order, we ask that you create [issues](https://github.com/CoCreateJS/CoCreate-actions/issues) and [pull requests](https://github.com/CoCreateJS/CoCreate-actions/pulls) or merely upvote or comment on existing issues or pull requests.
 
-For complete API documentation, integration examples, and webhook guides, visit:
+We appreciate your continued support, thank you!
 
-https://cocreatejs.com/docs/api
+---
+
+## About
+
+CoCreate-actions is guided and supported by the CoCreate Developer Experience Team.
+
+Please Email the Developer Experience Team [here](mailto:develop@CoCreateJS.com) in case of any queries.
+
+CoCreate-actions is maintained and funded by CoCreate. The names and logos for CoCreate are trademarks of CoCreate, LLC.
 
 ---
 
 ## License
 
-This software is dual-licensed under the GNU Affero General Public License version 3 (AGPLv3) and a commercial license.
-
-- **Open Source Use:** For open-source projects and non-commercial use, this software is available under the AGPLv3. For the full license text, see the LICENSE file.
-- **Commercial Use:** Commercial users must obtain a commercial license. Commercial licenses are available when signing up for an API key through the CoCreate platform.
+[The MIT License (MIT)](https://github.com/CoCreateJS/CoCreate-actions/blob/master/LICENSE)
