@@ -23,7 +23,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.com/cocreatejs/CoCreate-actions.git"
+    "url": "git+https://github.com/cocreatejs/CoCreate-actions.git"
   },
   "author": "CoCreate LLC",
   "license": "MIT",
