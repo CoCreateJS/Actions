@@ -56,6 +56,8 @@ function createActionError(element, action, reason) {
  * Call end() or continue() to advance, or abort(reason) to stop the chain.
  * An abort reason may be an Error, string, or { code, message, selector, cause }.
  * Callback promises report rejections; fulfillment does not advance the chain.
+ * @public
+ * @environment client
  */
 function init(data) {
     if (!Array.isArray(data)) data = [data];
@@ -408,6 +410,12 @@ function runLink(element) {
 }
 
 function run(link) {
+    /**
+     * Completion handler called after a successful chain. It can be supplied through CoCreate.actions.href or replaced on the default exported API object; otherwise Actions uses its built-in href handler.
+     *
+ * @public
+ * @environment client
+ */
     const href = link.getAttribute("href");
     if (!href) return;
 
@@ -439,3 +447,128 @@ Observer.init({
 initActions();
 
 export default CoCreateActions;
+
+/**
+ * Dispatched when the full chain completes successfully.
+ *
+ * @name actionsEnd
+ * @kind member
+ * @public
+ * @environment client
+ */
+
+/**
+ * Dispatched when the full chain aborts.
+ *
+ * @name actionsAbort
+ * @kind member
+ * @public
+ * @environment client
+ */
+
+/**
+ * Dispatched by a registered action's end(detail); it bubbles and includes element, form, action metadata, and the supplied detail.
+ *
+ * @name action endEvent
+ * @kind member
+ * @public
+ * @environment client
+ */
+
+/**
+ * Runs actions in order when the element is clicked. Names may refer to built-in actions or actions registered by modules.
+ *
+ * @name actions
+ * @kind member
+ * @attribute
+ * @valueType string
+ * @environment client
+ */
+
+/**
+ * Set to the string "false" to allow the click's default browser behavior; otherwise Actions prevents it.
+ *
+ * @name actions-prevent-default
+ * @kind member
+ * @attribute
+ * @valueType string
+ * @acceptedValues false
+ * @environment client
+ */
+
+/**
+ * Declarative actions supported or registered by this module.
+ *
+ * @name declarative-actions
+ * @kind member
+ * @actions
+ * @environment client
+ * @example
+ * ```json
+ * [
+ *   {
+ *     "name": "event",
+ *     "syntax": "event(eventName)",
+ *     "description": "Waits for the named event on the action element before continuing."
+ *   },
+ *   {
+ *     "name": "timeout",
+ *     "syntax": "timeout(milliseconds)",
+ *     "description": "Waits for a positive delay before continuing."
+ *   },
+ *   {
+ *     "name": "action",
+ *     "syntax": "action(selector)",
+ *     "description": "Clicks matching elements and waits for their action chains to complete."
+ *   },
+ *   {
+ *     "name": "submit",
+ *     "description": "Dispatches a cancelable submit event for the closest form and waits for its submitted event."
+ *   },
+ *   {
+ *     "name": "disabled",
+ *     "description": "Toggles the closest button's disabled attribute. If the chain aborts, Actions re-enables a button it disabled."
+ *   },
+ *   {
+ *     "name": "elementMethod",
+ *     "syntax": "methodName(selector)",
+ *     "description": "For other action names, queries matching elements and invokes a same-named method on each element when available."
+ *   }
+ * ]
+ * ```
+ */
+
+/**
+ * Registration contract for declarative actions.
+ *
+ * @name declarative-registeredActions
+ * @kind member
+ * @registeredActions
+ * @environment client
+ * @example
+ * ```json
+ * {
+ *   "syntax": "actionName[(parameters)]",
+ *   "methodSyntax": "actionName.methodName[(parameters)]",
+ *   "description": "Other modules register actions through the JavaScript API. Dotted syntax supplies a method to the registered action callback."
+ * }
+ * ```
+ */
+
+/**
+ * Declarative binding behavior for this module.
+ *
+ * @name declarative-binding
+ * @kind member
+ * @binding
+ * @environment client
+ * @example
+ * ```json
+ * {
+ *   "selector": "[actions]",
+ *   "trigger": "click",
+ *   "initializesExistingElements": true,
+ *   "observesAddedNodes": true
+ * }
+ * ```
+ */
