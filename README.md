@@ -292,7 +292,7 @@ Actions.init({
 
 ## Announcements
 
-All updates to this library are documented in our [CHANGELOG](https://github.com/CoCreateJS/CoCreate-actions/blob/master/CHANGELOG.md) and [releases](https://github.com/CoCreateJS/CoCreate-actions/releases). You may also subscribe to email for releases and breaking changes.
+All updates to this library are documented in our [CHANGELOG](https://github.com/CoCreateJS/actions/blob/master/CHANGELOG.md) and [releases](https://github.com/CoCreateJS/actions/releases). You may also subscribe to email for releases and breaking changes.
 
 ---
 
@@ -306,15 +306,15 @@ Upcoming enhancements include:
 * Named chains reusable across elements
 * Development mode tracing of chain execution
 
-If you are interested in the future direction of this project, please take a look at our open [issues](https://github.com/CoCreateJS/CoCreate-actions/issues) and [pull requests](https://github.com/CoCreateJS/CoCreate-actions/pulls). We would love to hear your feedback.
+If you are interested in the future direction of this project, please take a look at our open [issues](https://github.com/CoCreateJS/actions/issues) and [pull requests](https://github.com/CoCreateJS/actions/pulls). We would love to hear your feedback.
 
 ---
 
 ## How to Contribute
 
-We encourage contribution to our libraries (you might even score some nifty swag), please see our [CONTRIBUTING](https://github.com/CoCreateJS/CoCreate-actions/blob/master/CONTRIBUTING.md) guide for details.
+We encourage contribution to our libraries (you might even score some nifty swag), please see our [CONTRIBUTING](https://github.com/CoCreateJS/actions/blob/master/CONTRIBUTING.md) guide for details.
 
-We want this library to be community-driven, and CoCreate led. We need your help to realize this goal. To help make sure we are building the right things in the right order, we ask that you create [issues](https://github.com/CoCreateJS/CoCreate-actions/issues) and [pull requests](https://github.com/CoCreateJS/CoCreate-actions/pulls) or merely upvote or comment on existing issues or pull requests.
+We want this library to be community-driven, and CoCreate led. We need your help to realize this goal. To help make sure we are building the right things in the right order, we ask that you create [issues](https://github.com/CoCreateJS/actions/issues) and [pull requests](https://github.com/CoCreateJS/actions/pulls) or merely upvote or comment on existing issues or pull requests.
 
 We appreciate your continued support, thank you!
 
@@ -332,4 +332,4 @@ CoCreate-actions is maintained and funded by CoCreate. The names and logos for C
 
 ## License
 
-[The MIT License (MIT)](https://github.com/CoCreateJS/CoCreate-actions/blob/master/LICENSE)
+[The MIT License (MIT)](https://github.com/CoCreateJS/actions/blob/master/LICENSE)
