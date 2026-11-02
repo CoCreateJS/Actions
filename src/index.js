@@ -479,8 +479,7 @@ export default CoCreateActions;
  * Runs actions in order when the element is clicked. Names may refer to built-in actions or actions registered by modules.
  *
  * @name actions
- * @kind member
- * @attribute
+ * @kind attribute
  * @valueType string
  * @environment client
  */
@@ -489,8 +488,7 @@ export default CoCreateActions;
  * Set to the string "false" to allow the click's default browser behavior; otherwise Actions prevents it.
  *
  * @name actions-prevent-default
- * @kind member
- * @attribute
+ * @kind attribute
  * @valueType string
  * @acceptedValues false
  * @environment client
