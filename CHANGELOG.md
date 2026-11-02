@@ -1,3 +1,32 @@
+# [2.0.0](https://github.com/CoCreateJS/actions/compare/v1.22.3...v2.0.0) (2026-11-02)
+
+
+### Bug Fixes
+
+* add Deno specific entries to .gitignore ([8f1a9c9](https://github.com/CoCreateJS/actions/commit/8f1a9c9eea342b0d2a8aa024422454f0058efcf8))
+* bump [@cocreate](https://github.com/cocreate) dependencies ([211e653](https://github.com/CoCreateJS/actions/commit/211e65358757012516531fa074a6ea98e1c4a80c))
+* bump [@cocreate](https://github.com/cocreate) package versions ([e738b30](https://github.com/CoCreateJS/actions/commit/e738b30c6a5de9cf0ab535fc17c2e7017fa0ea11))
+* bump versions ([69250f8](https://github.com/CoCreateJS/actions/commit/69250f88180864b99416fe0693c02976030ae803))
+* bump versions ([797abb6](https://github.com/CoCreateJS/actions/commit/797abb68c1ed9f89280275ed9993cbe133f3d200))
+* remove trailing slash from node_modules entry in .gitignore ([c80c25c](https://github.com/CoCreateJS/actions/commit/c80c25cff66bac6ed00a0b5ddfd4fe4d3beefe5f))
+* update git url ([abc4086](https://github.com/CoCreateJS/actions/commit/abc40869ad8374a8f28beb341a8e70ed1b06d7f5))
+* update GitHub Actions to use latest versions and sync package.json description ([1785f3b](https://github.com/CoCreateJS/actions/commit/1785f3bfa8f879de502e98e5a01a80567f53e36b))
+* update README to reflect new @cocreate/api features and usage ([33c5d58](https://github.com/CoCreateJS/actions/commit/33c5d58adee2d6da9f9616254c5b6c999f92f888))
+
+
+### Features
+
+* align CoCreate repository and package naming ([14ae2a6](https://github.com/CoCreateJS/actions/commit/14ae2a6f7c18faa1bdde3d660895dd00ead49010))
+* allow actions to preserve native behavior ([fba3ddf](https://github.com/CoCreateJS/actions/commit/fba3ddf7ad4789f3fd3e306a3ff2d1fda4142b0e))
+* enhance action handling with error management and lifecycle events ([a9e310d](https://github.com/CoCreateJS/actions/commit/a9e310d9725bd9d1b195e49f4c7ea4a325f36686))
+* replace uuid import and usage with utils ([5e947cb](https://github.com/CoCreateJS/actions/commit/5e947cbd26dc089d2173c27706e3feef94a93c28))
+* support configurable action href handling ([634dff3](https://github.com/CoCreateJS/actions/commit/634dff3c1af0610b84d76060b30f5e9d38a46f33))
+
+
+### BREAKING CHANGES
+
+* consumers must use the renamed CoCreate package and repository identities; the previous prefixed names are no longer supported.
+
 ## [1.22.3](https://github.com/CoCreateJS/CoCreate-actions/compare/v1.22.2...v1.22.3) (2026-07-19)
 
 
