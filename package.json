@@ -37,12 +37,12 @@
   },
   "main": "./src/index.js",
   "devDependencies": {
-    "@cocreate/webpack": "^2.0.0"
+    "@cocreate/webpack": "^2.0.1"
   },
   "dependencies": {
-    "@cocreate/element-prototype": "^2.0.0",
-    "@cocreate/observer": "^2.0.0",
-    "@cocreate/utils": "^2.0.0"
+    "@cocreate/element-prototype": "^2.0.1",
+    "@cocreate/observer": "^2.0.1",
+    "@cocreate/utils": "^2.0.2"
   },
   "allowScripts": {
     "@cocreate/observer@1.19.0": true,
